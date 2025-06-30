@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Save Location on Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    #map { width: 100%; height: 100vh; }
+    #save-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="save-panel" style="
+  display: none;
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 1001;
+  width: 300px;
+">
+  <h3 style="margin-bottom: 0.5rem;">Save Location</h3>
+  <input type="text" id="loc-name" placeholder="Name" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;" />
+  <textarea id="loc-desc" placeholder="Description" style="width: 100%; padding: 0.5rem; height: 60px;"></textarea>
+  <button id="save-btn" style="
+    background-color: #00504F;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    width: 100%;
+    cursor: pointer;
+  ">
+    Save Location
+  </button>
+</div>
+
+  <div id="map"></div>
+
+  <div id="save-panel" style="display:none;">
+    <h3>Save Location</h3>
+    <input type="text" id="loc-name" placeholder="Name" /><br>
+    <textarea id="loc-desc" placeholder="Description"></textarea><br>
+    <input type="text" id="loc-tag" placeholder="Tag (e.g. Home, Work)" />
+    <button id="save-btn">📍 Save</button>
+  </div>
+
+<!-- Edit Modal -->
+<div id="edit-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; 
+  width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
+  <div class="modal-content" style="background: white; padding: 2rem; border-radius: 10px; width: 300px; text-align: center;">
+    <span onclick="closeEditModal()" style="float: right; cursor: pointer;">&times;</span>
+    <h3>Edit Location</h3>
+    <input type="text" id="edit-name" placeholder="Name" style="width: 100%; margin: 1rem 0;" />
+    <input type="text" id="edit-desc" placeholder="Description" style="width: 100%; margin-bottom: 1rem;" />
+    <button id="update-btn">Update</button>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem("access_token");
+  const map = L.map('map').setView([1.2921, 36.8219], 13); // Nairobi
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  let marker, currentLatLng;
+  let editingLocationId = null;
+
+  // Load saved markers
+  async function loadSavedLocations() {
+    const res = await fetch('http://127.0.0.1:8000/api/map/locations/', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      data.forEach(loc => {
+        const [lng, lat] = loc.coordinates.coordinates;
+        const m = L.marker([lat, lng]).addTo(map);
+
+        const popupContent = `
+          <strong>${loc.name}</strong><br>${loc.description}<br><br>
+          <button onclick="editLocation(${loc.id}, '${loc.name}', '${loc.description}')">✏️ Edit</button>
+          <button onclick="deleteLocation(${loc.id})">🗑️ Delete</button>
+        `;
+        m.bindPopup(popupContent);
+      });
+    } else {
+      console.warn("⚠️ Couldn't load saved locations");
+    }
+  }
+
+  loadSavedLocations();
+
+  // Handle map click for new marker
+  map.on('click', function (e) {
+    currentLatLng = e.latlng;
+
+    if (marker) map.removeLayer(marker);
+    marker = L.marker(e.latlng).addTo(map);
+    document.getElementById('save-panel').style.display = 'block';
+  });
+
+  // Save marker to API
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const name = document.getElementById('loc-name').value;
+    const description = document.getElementById('loc-desc').value;
+
+    const res = await fetch('http://127.0.0.1:8000/api/map/locations/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        description,
+        coordinates: {
+          type: 'Point',
+          coordinates: [currentLatLng.lng, currentLatLng.lat]
+        }
+      })
+    });
+
+    if (res.ok) {
+      marker.bindPopup(`<b>Saved!</b>`).openPopup();
+      document.getElementById('save-panel').style.display = 'none';
+      document.getElementById('loc-name').value = '';
+      document.getElementById('loc-desc').value = '';
+      location.reload(); // Refresh to show all updated markers
+    } else {
+      alert('❌ Failed to save location');
+    }
+  });
+
+  // Edit logic
+  window.editLocation = (id, name, desc) => {
+    editingLocationId = id;
+    document.getElementById("edit-name").value = name;
+    document.getElementById("edit-desc").value = desc;
+    document.getElementById("edit-modal").style.display = "block";
+  };
+
+  window.closeEditModal = () => {
+    document.getElementById("edit-modal").style.display = "none";
+    editingLocationId = null;
+  };
+
+  document.getElementById("update-btn").addEventListener("click", async () => {
+    const name = document.getElementById("edit-name").value;
+    const description = document.getElementById("edit-desc").value;
+
+    const res = await fetch(`http://127.0.0.1:8000/api/map/locations/${editingLocationId}/`, {
+      method: "PUT",
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name, description })
+    });
+
+    if (res.ok) {
+      alert("✅ Updated!");
+      closeEditModal();
+      location.reload();
+    } else {
+      alert("❌ Update failed");
+    }
+  });
+
+  // Delete logic
+  window.deleteLocation = async (id) => {
+    if (!confirm("Are you sure you want to delete this location?")) return;
+
+    const res = await fetch(`http://127.0.0.1:8000/api/map/locations/${id}/`, {
+      method: "DELETE",
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      alert("🗑️ Deleted");
+      location.reload();
+    } else {
+      alert("❌ Deletion failed");
+    }
+  };
+</script>
+</body>
+</html>
