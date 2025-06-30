@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#24346A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  
+  <!-- Pencil body -->
+  <path d="M3 21v-3l13.5-13.5a1.5 1.5 0 0 1 2.12 0l1.88 1.88a1.5 1.5 0 0 1 0 2.12L7 21H3z"></path>
+  
+  <!-- Pencil line detail (optional) -->
+  <line x1="14" y1="7" x2="17" y2="10"></line>
+</svg>

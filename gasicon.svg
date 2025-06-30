@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="#24346A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Platform base -->
+  <rect x="10" y="50" width="44" height="6" rx="2" ry="2"></rect>
+
+  <!-- Pump body -->
+  <rect x="14" y="8" width="24" height="40" rx="2" ry="2"></rect>
+
+  <!-- Screen window -->
+  <rect x="20" y="14" width="12" height="8" rx="1" ry="1"></rect>
+
+  <!-- Hose coming out from side -->
+  <path d="
+    M38 20 
+    h6 
+    v24 
+    a6 6 0 0 0 12 0 
+    V24 
+    l-6 -4
+  "></path>
+</svg>
